@@ -24,7 +24,7 @@ class KeyPad {
   public:
     KeyPad(byte functionsPin, byte xPin, byte yPin, byte zPin);
     void setup();
-    void update();
+    void update(int deltaMs);
     bool isAnyKeyPressed();
     bool isKeyPressed(unsigned int keyCode);
 
@@ -33,7 +33,9 @@ class KeyPad {
     byte _xPin;
     byte _yPin;
     byte _zPin;
-    unsigned int _keysPressed;
+    int _timer = 0;
+    unsigned int _keysDown = 0;
+    unsigned int _keysRead = 0;
 
 };
 

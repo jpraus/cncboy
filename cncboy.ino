@@ -3,6 +3,8 @@
 #include "ui.h"
 #include "state.h"
 #include "keypad.h"
+#include "millingCtrl.h"
+#include "filesCtrl.h"
 
 #define SD_CS 21
 #define DSPY_CS 5
@@ -15,13 +17,19 @@
 #define KEY_Y 34
 #define KEY_Z 35
 
-//U8G2_ST7920_128X64_1_SW_SPI lcd(U8G2_R0, /* CLK=*/ 18, /* MOSI=*/ 23, /* CS=*/ 5);
-//U8G2_ST7920_128X64_1_SW_SPI lcd(U8G2_R0, /* CLK=*/ DSPY_EN, /* MOSI=*/ DSPY_RW, /* CS=*/ DSPY_RS, /* reset=*/ U8X8_PIN_NONE);
-U8G2_ST7920_128X64_F_HW_SPI u8g2(U8G2_R0, /* CS=*/ DSPY_CS);
+#define HSPI_MISO 15
+#define HSPI_MOSI 13
+#define HSPI_CLK 14
+
+U8G2_ST7920_128X64_F_HW_SPI u8g2(U8G2_R0, /* CS=*/ DSPY_CS); // VSPI for display
+SPIClass SDSPI(HSPI); // HSPI for SD card
 
 STATE state;
 UI ui(&u8g2, &state, DSPY_BCKLIGHT);
 KeyPad keypad(KEY_FUNCTION, KEY_X, KEY_Y, KEY_Z);
+
+MillingCtrl millingCtrl(&ui, &keypad);
+FilesCtrl filesCtrl(&ui, &keypad, &SDSPI, SD_CS);
 
 File file;
 
@@ -30,11 +38,12 @@ unsigned long deltaMsRef = 0;
 
 // mode
 #define MODE_INIT 0
-#define MODE_SELECT_FILE 1
-#define MODE_LOAD_FILE 2
-#define MODE_SEND_COMMAND 3
-#define MODE_AWAIT_ACK 4
-#define MODE_DONE 5
+#define MODE_IDLE 1
+#define MODE_SELECT_FILE 2
+#define MODE_LOAD_FILE 3
+#define MODE_SEND_COMMAND 4
+#define MODE_AWAIT_ACK 5
+#define MODE_DONE 6
 #define MODE_ERROR 99
 
 byte mode = MODE_INIT;
@@ -44,17 +53,30 @@ void setup() {
   Serial.setDebugOutput(0);
   Serial2.begin(115200, SERIAL_8N1, RXD2, TXD2); // CNC
 
+  // HSPI for SD card
+  SDSPI.begin(HSPI_CLK, HSPI_MISO, HSPI_MOSI, -1);
+
   // modules
   keypad.setup();
   ui.setup();
+  filesCtrl.setup();
 
   mode = MODE_INIT;
   state.milling.elapsedSeconds = 0;
+
+  // initial delay to warm everything up
+  delay(1000);
+  deltaMsRef = millis();
+  everySecondTimer = 1000;
+
+  filesCtrl.start();
 }
 
 void loop() {
   int deltaMs = getDeltaMs();
-  keypad.update();
+  millingCtrl.update(deltaMs);
+  filesCtrl.update(deltaMs);
+  keypad.update(deltaMs);
 
   // do every 1 second
   everySecondTimer -= deltaMs;
@@ -63,12 +85,17 @@ void loop() {
     if (mode == MODE_SEND_COMMAND || mode == MODE_AWAIT_ACK) { // milling
       state.milling.elapsedSeconds ++;
     }
-    ui.update();
+    //ui.update();
   }
 
   switch (mode) {
     case MODE_INIT:
-      initialize();
+      //initialize();
+      break;
+    case MODE_IDLE:
+      if (keypad.isKeyPressed(KEYCODE_B)) {
+        mode = MODE_LOAD_FILE;
+      }
       break;
     case MODE_SELECT_FILE:
       selectFile();
@@ -84,13 +111,15 @@ void loop() {
       receiveReponse();
       break;
   }
+
+  delay(1);
 }
 
 void initialize() {
   state.logger.println(F("SD card .."));
   pinMode(SD_CS, OUTPUT);
 
-  if (!SD.begin(SD_CS)) {
+  if (!SD.begin(SD_CS, SDSPI)) {
     mode = MODE_ERROR;
     state.logger.println(F("Card Error"));
   }
@@ -98,10 +127,6 @@ void initialize() {
     mode = MODE_SELECT_FILE;
     state.logger.println(F("Card Found"));
   }
-
-  deltaMsRef = millis();
-  everySecondTimer = 1000;
-  delay(1000);
 }
 
 void selectFile() {
@@ -121,7 +146,7 @@ void selectFile() {
     }
     if (!entry.isDirectory()) {
       state.logger.println(entry.name());
-      state.logger.print(entry.size()/1024, DEC);
+      state.logger.print(entry.size() / 1024, DEC);
       state.logger.println(F(" kB"));
 
       file = SD.open(entry.name());
@@ -131,7 +156,7 @@ void selectFile() {
       }
 
       found = true;
-      mode = MODE_LOAD_FILE;
+      mode = MODE_IDLE;
       state.milling.filename = entry.name();
       state.milling.totalLines = 0;
       state.milling.currentLine = 0;

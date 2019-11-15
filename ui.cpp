@@ -23,7 +23,7 @@ void UI::update() {
   _lcd.firstPage();
 
   do {
-    drawMillingScreen();
+    //drawMillingScreen();
     //drawLogScreen();
   } while (_lcd.nextPage());
 }
@@ -66,6 +66,60 @@ void UI::drawMillingScreen() {
   drawPlayButton(1);
   drawPauseButton(2);
   drawStopButton(3);
+}
+
+void UI::firstPage() {
+  _lcd.firstPage();
+}
+
+uint8_t UI::nextPage() {
+  return _lcd.nextPage();
+}
+
+void UI::setFont(const uint8_t *font, byte colorIndex) {
+  _lcd.setFont(font);
+  _lcd.setColorIndex(colorIndex);
+}
+
+void UI::drawStr(u8g2_uint_t x, u8g2_uint_t y, String str) {
+  _lcd.drawStr(x, y, str.c_str());
+}
+
+void UI::drawPickList(u8g2_uint_t y, byte size, String items[], byte itemsCount, int selectedIndex) {
+  _lcd.setFont(u8g2_font_6x10_mr);
+  _lcd.setColorIndex(1);
+
+  byte offset = 0;
+  if (size >= itemsCount) {
+    size = itemsCount;
+  }
+  else {
+    byte centerIndex = floor(size / 2.0);
+    if (selectedIndex > centerIndex) {
+      offset = selectedIndex - centerIndex;
+    }
+    if (offset + size > itemsCount) {
+      offset = itemsCount - size;
+    }
+  }
+
+  for (int i = 0; i < size; i++) {
+    if (i + offset == selectedIndex) {
+      _lcd.drawBox(0, i * 11, 128, 10);
+      _lcd.setColorIndex(0);
+      drawStr(1, i * 11 + 8, items[i + offset]);
+      _lcd.setColorIndex(1);
+    }
+    else {
+      drawStr(1, i * 11 + 8, items[i + offset]);
+    }
+  }
+}
+
+void UI::drawProgressBar(int16_t y, float progress) {
+  int progressBar = 122 * progress;
+  _lcd.drawRFrame(0, y, 128, 10, 3);
+  _lcd.drawRBox(1, y + 1, 4 + progressBar, 8, 2); // 5->127 (122 steps)
 }
 
 void UI::drawPlayButton(byte pos) {
