@@ -1,10 +1,10 @@
 #include <SD.h>
 #include <U8g2lib.h>
 #include "ui.h"
-#include "state.h"
 #include "keypad.h"
 #include "millingCtrl.h"
 #include "filesCtrl.h"
+#include "grbl.h"
 
 #define SD_CS 21
 #define DSPY_CS 5
@@ -24,32 +24,16 @@
 U8G2_ST7920_128X64_F_HW_SPI u8g2(U8G2_R0, /* CS=*/ DSPY_CS); // VSPI for display
 SPIClass SDSPI(HSPI); // HSPI for SD card
 
-STATE state;
-UI ui(&u8g2, &state, DSPY_BCKLIGHT);
+Grbl grbl;
+UI ui(&u8g2, DSPY_BCKLIGHT);
 KeyPad keypad(KEY_FUNCTION, KEY_X, KEY_Y, KEY_Z);
 
-MillingCtrl millingCtrl(&ui, &keypad);
+MillingCtrl millingCtrl(&grbl, &ui, &keypad);
 FilesCtrl filesCtrl(&ui, &keypad, &SDSPI, SD_CS);
 
-File file;
-
-int everySecondTimer = 0;
 unsigned long deltaMsRef = 0;
 
-// mode
-#define MODE_INIT 0
-#define MODE_IDLE 1
-#define MODE_SELECT_FILE 2
-#define MODE_LOAD_FILE 3
-#define MODE_SEND_COMMAND 4
-#define MODE_AWAIT_ACK 5
-#define MODE_DONE 6
-#define MODE_ERROR 99
-
-byte mode = MODE_INIT;
-
-
-// mode
+// screen
 #define SCREEN_HOME 0
 #define SCREEN_FILES 1
 #define SCREEN_MILLING 2
@@ -69,13 +53,9 @@ void setup() {
   ui.setup();
   filesCtrl.setup();
 
-  mode = MODE_INIT;
-  state.milling.elapsedSeconds = 0;
-
   // initial delay to warm everything up
   delay(1000);
   deltaMsRef = millis();
-  everySecondTimer = 1000;
 
   // init screen
   screen = SCREEN_FILES;

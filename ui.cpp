@@ -4,8 +4,8 @@
 #define ALIGN_CENTER 2
 #define ALIGN_RIGHT 5
 
-UI::UI(U8G2 *lcd, STATE *state, byte backlightPin) 
-    : lcd(*lcd), state(*state), backlightPin(backlightPin) {
+UI::UI(U8G2 *lcd, byte backlightPin) 
+    : lcd(*lcd), backlightPin(backlightPin) {
 }
 
 void UI::setup() {

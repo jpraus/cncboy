@@ -3,11 +3,10 @@
 
 #include "Arduino.h"
 #include <U8g2lib.h>
-#include "state.h"
 
 class UI {
   public:
-    UI(U8G2 *lcd, STATE *state, byte backlightPin);
+    UI(U8G2 *lcd, byte backlightPin);
     void setup();
 
     void firstPage();
@@ -28,7 +27,6 @@ class UI {
 
   private:
     U8G2 &lcd;
-    STATE &state;
     byte backlightPin;
     byte frame = 0;
 
