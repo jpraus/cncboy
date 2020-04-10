@@ -24,7 +24,7 @@ struct MillingStatus {
 class STATE {
   public:
     STATE() {
-      logger.begin(U8LOG_WIDTH, U8LOG_HEIGHT, _loggerBuffer);
+      logger.begin(U8LOG_WIDTH, U8LOG_HEIGHT, loggerBuffer);
       logger.setLineHeightOffset(1);
     }
 
@@ -33,7 +33,7 @@ class STATE {
     FileDescriptor openFile; // read-write
 
   private:
-    uint8_t _loggerBuffer[U8LOG_WIDTH * U8LOG_HEIGHT];
+    uint8_t loggerBuffer[U8LOG_WIDTH * U8LOG_HEIGHT];
 };
 
 #endif

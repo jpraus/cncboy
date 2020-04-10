@@ -26,10 +26,10 @@ class UI {
     String formatTime(unsigned int seconds);
 
   private:
-    U8G2 &_lcd;
-    STATE &_state;
-    byte _backlightPin;
-    byte _frame = 0;
+    U8G2 &lcd;
+    STATE &state;
+    byte backlightPin;
+    byte frame = 0;
 
     void drawLogScreen();
     void drawMillingScreen();

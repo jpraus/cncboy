@@ -48,6 +48,14 @@ unsigned long deltaMsRef = 0;
 
 byte mode = MODE_INIT;
 
+
+// mode
+#define SCREEN_HOME 0
+#define SCREEN_FILES 1
+#define SCREEN_MILLING 2
+
+byte screen = SCREEN_FILES;
+
 void setup() {
   Serial.begin(115200); // USB
   Serial.setDebugOutput(0);
@@ -69,15 +77,17 @@ void setup() {
   deltaMsRef = millis();
   everySecondTimer = 1000;
 
+  // init screen
+  screen = SCREEN_FILES;
   filesCtrl.start();
 }
 
 void loop() {
   int deltaMs = getDeltaMs();
-  millingCtrl.update(deltaMs);
-  filesCtrl.update(deltaMs);
-  keypad.update(deltaMs);
+  byte result;
 
+  keypad.update(deltaMs);
+/*
   // do every 1 second
   everySecondTimer -= deltaMs;
   if (everySecondTimer <= 0) {
@@ -87,7 +97,38 @@ void loop() {
     }
     //ui.update();
   }
+*/
+  switch (screen) {
+    case SCREEN_HOME:
+      break;
 
+    case SCREEN_FILES:
+      // screen where you can selected files to start milling
+      result = filesCtrl.update(deltaMs);
+      switch (result) {
+        case FILES_RESULT_SELECTED:
+          millingCtrl.start(filesCtrl.getSelectedFile());
+          screen = SCREEN_MILLING;
+          break;
+        case FILES_RESULT_BACK:
+          //screen = SCREEN_HOME;
+          break;
+      }
+      break;
+
+    case SCREEN_MILLING:
+      // running milling program
+      result = millingCtrl.update(deltaMs);
+      switch (result) {
+        case MILLING_RESULT_BACK:
+          millingCtrl.stop();
+          filesCtrl.start();
+          screen = SCREEN_FILES;
+          break;
+      }
+      break;
+  }
+/*
   switch (mode) {
     case MODE_INIT:
       //initialize();
@@ -111,7 +152,7 @@ void loop() {
       receiveReponse();
       break;
   }
-
+*/
   delay(1);
 }
 

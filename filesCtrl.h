@@ -3,6 +3,10 @@
 
 #define MAX_FILES 20
 
+#define FILES_RESULT_NONE 0
+#define FILES_RESULT_SELECTED 1
+#define FILES_RESULT_BACK 2
+
 #include "Arduino.h"
 #include <SD.h>
 #include "ui.h"
@@ -14,31 +18,31 @@ class FilesCtrl {
     void setup();
     void start();
     void stop();
-    void update(int deltaMs);
+    byte update(int deltaMs);
+    File getSelectedFile();
 
   private:
-    UI &_ui;
-    KeyPad &_keyPad;
-    SPIClass &_spi;
-    int _csPin;
+    UI &ui;
+    KeyPad &keyPad;
+    SPIClass &spi;
+    int csPin;
 
-    String _folderName;
-    File _folder;
-    String _files[MAX_FILES];
-    byte _filesCount = 0;
-    byte _selectedFileIndex = 0;
+    String folderName;
+    File folder;
+    String files[MAX_FILES];
+    byte filesCount = 0;
+    byte selectedFileIndex = 0;
 
-    boolean _sdCard = false;
-    boolean _loaded = false;
-    byte _state = 0;
+    boolean sdCard = false;
+    boolean loaded = false;
+    byte state = 0;
 
-    void _pickingFile();
-    void _loadingFolder();
-    void _showError(String msg);
+    byte pickingFile();
+    void loadingFolder();
+    void showError(String msg);
 
-    void _showLoading(float progress);
-    void _showFiles();
-
+    void showLoading(float progress);
+    void showFiles();
 };
 
 #endif

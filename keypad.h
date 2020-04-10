@@ -29,13 +29,13 @@ class KeyPad {
     bool isKeyPressed(unsigned int keyCode);
 
   private:
-    byte _functionsPin;
-    byte _xPin;
-    byte _yPin;
-    byte _zPin;
-    int _timer = 0;
-    unsigned int _keysDown = 0;
-    unsigned int _keysRead = 0;
+    byte functionsPin;
+    byte xPin;
+    byte yPin;
+    byte zPin;
+    int timer = 0;
+    unsigned int keysDown = 0;
+    unsigned int keysRead = 0;
 
 };
 

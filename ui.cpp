@@ -5,46 +5,46 @@
 #define ALIGN_RIGHT 5
 
 UI::UI(U8G2 *lcd, STATE *state, byte backlightPin) 
-    : _lcd(*lcd), _state(*state), _backlightPin(backlightPin) {
+    : lcd(*lcd), state(*state), backlightPin(backlightPin) {
 }
 
 void UI::setup() {
-  pinMode(_backlightPin, OUTPUT);
-  digitalWrite(_backlightPin, OUTPUT);
+  pinMode(backlightPin, OUTPUT);
+  digitalWrite(backlightPin, OUTPUT);
 
-  _lcd.setBusClock(500000);
-  _lcd.begin();
-  _lcd.setColorIndex(1);
-  _lcd.clear();
+  lcd.setBusClock(500000);
+  lcd.begin();
+  lcd.setColorIndex(1);
+  lcd.clear();
 }
 
 void UI::update() {
-  _frame = (_frame >= 1) ? 0 : _frame + 1;
-  _lcd.firstPage();
+  frame = (frame >= 1) ? 0 : frame + 1;
+  lcd.firstPage();
 
   do {
     //drawMillingScreen();
     //drawLogScreen();
-  } while (_lcd.nextPage());
+  } while (lcd.nextPage());
 }
 
 void UI::drawLogScreen() {
-  _lcd.setFont(u8g2_font_5x8_mr);
-  _lcd.setColorIndex(1);
-  _lcd.drawLog(0, 7, _state.logger);
+  lcd.setFont(u8g2_font_5x8_mr);
+  lcd.setColorIndex(1);
+  lcd.drawLog(0, 7, state.logger);
 }
 
 void UI::drawMillingScreen() {
-  _lcd.setFont(u8g2_font_5x8_mr);
-  _lcd.setColorIndex(1);
+  lcd.setFont(u8g2_font_5x8_mr);
+  lcd.setColorIndex(1);
 
   float progress = 0;
   String progressStr;
   int progressBar;
-  String timeStr = formatTime(_state.milling.elapsedSeconds);
+  String timeStr = formatTime(state.milling.elapsedSeconds);
 
-  if (_state.milling.totalLines > 0) {
-    progress = (float) _state.milling.currentLine / _state.milling.totalLines;
+  if (state.milling.totalLines > 0) {
+    progress = (float) state.milling.currentLine / state.milling.totalLines;
   }
   if (progress > 1) {
     progress = 1;
@@ -54,13 +54,13 @@ void UI::drawMillingScreen() {
   progressStr += "%";
   progressBar = 122 * progress;
 
-  _lcd.drawStr(0, 8, _state.milling.filename.c_str());
-  _lcd.drawRFrame(0, 10, 128, 10, 3);
-  _lcd.drawRBox(1, 11, 4 + progressBar, 8, 2); // 5->127 (122 steps)
-  _lcd.drawStr(0, 28, progressStr.c_str());
-  _lcd.drawStr(128 - (5 * timeStr.length()), 28, timeStr.c_str());
+  lcd.drawStr(0, 8, state.milling.filename.c_str());
+  lcd.drawRFrame(0, 10, 128, 10, 3);
+  lcd.drawRBox(1, 11, 4 + progressBar, 8, 2); // 5->127 (122 steps)
+  lcd.drawStr(0, 28, progressStr.c_str());
+  lcd.drawStr(128 - (5 * timeStr.length()), 28, timeStr.c_str());
 
-  //_lcd.drawLog(0, 38, _state.logger);
+  //lcd.drawLog(0, 38, state.logger);
 
   drawTextButton(0, "Load");
   drawPlayButton(1);
@@ -69,25 +69,25 @@ void UI::drawMillingScreen() {
 }
 
 void UI::firstPage() {
-  _lcd.firstPage();
+  lcd.firstPage();
 }
 
 uint8_t UI::nextPage() {
-  return _lcd.nextPage();
+  return lcd.nextPage();
 }
 
 void UI::setFont(const uint8_t *font, byte colorIndex) {
-  _lcd.setFont(font);
-  _lcd.setColorIndex(colorIndex);
+  lcd.setFont(font);
+  lcd.setColorIndex(colorIndex);
 }
 
 void UI::drawStr(u8g2_uint_t x, u8g2_uint_t y, String str) {
-  _lcd.drawStr(x, y, str.c_str());
+  lcd.drawStr(x, y, str.c_str());
 }
 
 void UI::drawPickList(u8g2_uint_t y, byte size, String items[], byte itemsCount, int selectedIndex) {
-  _lcd.setFont(u8g2_font_6x10_mr);
-  _lcd.setColorIndex(1);
+  lcd.setFont(u8g2_font_6x10_mr);
+  lcd.setColorIndex(1);
 
   byte offset = 0;
   if (size >= itemsCount) {
@@ -105,10 +105,10 @@ void UI::drawPickList(u8g2_uint_t y, byte size, String items[], byte itemsCount,
 
   for (int i = 0; i < size; i++) {
     if (i + offset == selectedIndex) {
-      _lcd.drawBox(0, i * 11, 128, 10);
-      _lcd.setColorIndex(0);
+      lcd.drawBox(0, i * 11, 128, 10);
+      lcd.setColorIndex(0);
       drawStr(1, i * 11 + 8, items[i + offset]);
-      _lcd.setColorIndex(1);
+      lcd.setColorIndex(1);
     }
     else {
       drawStr(1, i * 11 + 8, items[i + offset]);
@@ -118,19 +118,19 @@ void UI::drawPickList(u8g2_uint_t y, byte size, String items[], byte itemsCount,
 
 void UI::drawProgressBar(int16_t y, float progress) {
   int progressBar = 122 * progress;
-  _lcd.drawRFrame(0, y, 128, 10, 3);
-  _lcd.drawRBox(1, y + 1, 4 + progressBar, 8, 2); // 5->127 (122 steps)
+  lcd.drawRFrame(0, y, 128, 10, 3);
+  lcd.drawRBox(1, y + 1, 4 + progressBar, 8, 2); // 5->127 (122 steps)
 }
 
 void UI::drawPlayButton(byte pos) {
   int16_t x = calculateButtonLeft(pos);
   int16_t width = calculateButtonWidth(pos);
 
-  _lcd.setColorIndex(1);
-  _lcd.drawRBox(x, 52, width, 13, 2);
+  lcd.setColorIndex(1);
+  lcd.drawRBox(x, 52, width, 13, 2);
 
-  _lcd.setColorIndex(0);
-  _lcd.drawTriangle(x + 14, 54, x + 14, 62, x + 19, 58);
+  lcd.setColorIndex(0);
+  lcd.drawTriangle(x + 14, 54, x + 14, 62, x + 19, 58);
 }
 
 void UI::drawStopButton(byte pos) {
@@ -138,8 +138,8 @@ void UI::drawStopButton(byte pos) {
   int16_t width = calculateButtonWidth(pos);
 
   drawButton(x, width);
-  _lcd.setColorIndex(0);
-  _lcd.drawBox(x + 13, 55, 6, 6);
+  lcd.setColorIndex(0);
+  lcd.drawBox(x + 13, 55, 6, 6);
 }
 
 void UI::drawPauseButton(byte pos) {
@@ -147,9 +147,9 @@ void UI::drawPauseButton(byte pos) {
   int16_t width = calculateButtonWidth(pos);
 
   drawButton(x, width);
-  _lcd.setColorIndex(0);
-  _lcd.drawBox(x + 14, 55, 2, 6);
-  _lcd.drawBox(x + 17, 55, 2, 6);
+  lcd.setColorIndex(0);
+  lcd.drawBox(x + 14, 55, 2, 6);
+  lcd.drawBox(x + 17, 55, 2, 6);
 }
 
 void UI::drawTextButton(byte pos, String label) {
@@ -158,14 +158,14 @@ void UI::drawTextButton(byte pos, String label) {
   byte textX = x + round((width - label.length() * 5) / 2.0);
 
   drawButton(x, width);
-  _lcd.setColorIndex(0);
-  _lcd.setFont(u8g2_font_5x8_mr);
-  _lcd.drawStr(textX, 61, label.c_str());
+  lcd.setColorIndex(0);
+  lcd.setFont(u8g2_font_5x8_mr);
+  lcd.drawStr(textX, 61, label.c_str());
 }
 
 void UI::drawButton(int16_t x, int16_t width) {
-  _lcd.setColorIndex(1);
-  _lcd.drawRBox(x, 52, width, 13, 2);
+  lcd.setColorIndex(1);
+  lcd.drawRBox(x, 52, width, 13, 2);
 }
 
 int16_t UI::calculateButtonLeft(byte pos) {

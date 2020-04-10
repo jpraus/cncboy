@@ -3,14 +3,14 @@
 #define KEYPAD_READ_TIMER 10 // millis
 
 KeyPad::KeyPad(byte functionsPin, byte xPin, byte yPin, byte zPin)
-    : _functionsPin(functionsPin), _xPin(xPin), _yPin(yPin), _zPin(zPin) {
+    : functionsPin(functionsPin), xPin(xPin), yPin(yPin), zPin(zPin) {
 }
 
 void KeyPad::setup() {
-  pinMode(_functionsPin, INPUT);
-  pinMode(_xPin, INPUT);
-  pinMode(_yPin, INPUT);
-  pinMode(_zPin, INPUT);
+  pinMode(functionsPin, INPUT);
+  pinMode(xPin, INPUT);
+  pinMode(yPin, INPUT);
+  pinMode(zPin, INPUT);
   
    // configure ADC
   analogReadResolution(16); // set 12bit resolution (0-4095)
@@ -20,73 +20,73 @@ void KeyPad::setup() {
 }
 
 void KeyPad::update(int deltaMs) {
-  _timer -= deltaMs;
-  if (_timer > 0) {
+  timer -= deltaMs;
+  if (timer > 0) {
     return; // not yet
   }
-  _timer += KEYPAD_READ_TIMER;
+  timer += KEYPAD_READ_TIMER;
 
-  unsigned int functionKey = analogRead(_functionsPin); // 0-4095
-  unsigned int xKey = analogRead(_xPin); // 0-4095
-  unsigned int yKey = analogRead(_yPin); // 0-4095
-  unsigned int zKey = analogRead(_zPin); // 0-4095
+  unsigned int functionKey = analogRead(functionsPin); // 0-4095
+  unsigned int xKey = analogRead(xPin); // 0-4095
+  unsigned int yKey = analogRead(yPin); // 0-4095
+  unsigned int zKey = analogRead(zPin); // 0-4095
 
-  _keysDown = 0; // TODO: maybe not reset
+  keysDown = 0; // TODO: maybe not reset
 
   // function keys
   if (functionKey > 3500) {
-    _keysDown += KEYCODE_A;
+    keysDown += KEYCODE_D;
   }
   else if (functionKey > 2300) {
-    _keysDown += KEYCODE_B;
+    keysDown += KEYCODE_C;
   }
-  else if (functionKey > 1500) {
-    _keysDown += KEYCODE_C;
+  else if (functionKey > 1800) {
+    keysDown += KEYCODE_B;
   }
   else if (functionKey > 500) {
-    _keysDown += KEYCODE_D;
+    keysDown += KEYCODE_A;
   }
 
   // XY pad
   if (xKey > 3500) {
-    _keysDown += KEYCODE_RIGHT;
+    keysDown += KEYCODE_RIGHT;
   }
   else if (xKey > 500) {
-    _keysDown += KEYCODE_LEFT;
+    keysDown += KEYCODE_LEFT;
   }
   if (yKey > 3500) {
-    _keysDown += KEYCODE_CENTER;
+    keysDown += KEYCODE_CENTER;
   }
   else if (yKey > 2300) {
-    _keysDown += KEYCODE_DOWN;
+    keysDown += KEYCODE_DOWN;
   }
   else if (yKey > 500) {
-    _keysDown += KEYCODE_UP;
+    keysDown += KEYCODE_UP;
   }
 
   // Z pad
   if (zKey > 3500) {
-    _keysDown += KEYCODE_ZCENTER;
+    keysDown += KEYCODE_ZCENTER;
   }
   else if (zKey > 2300) {
-    _keysDown += KEYCODE_ZDOWN;
+    keysDown += KEYCODE_ZDOWN;
   }
   else if (zKey > 500) {
-    _keysDown += KEYCODE_ZUP;
+    keysDown += KEYCODE_ZUP;
   }
 
   // unflag keys up
-  _keysRead = _keysRead & _keysDown;
+  keysRead = keysRead & keysDown;
 }
 
 bool KeyPad::isAnyKeyPressed() {
-  return _keysDown > 0;
+  return keysDown > 0;
 }
 
 bool KeyPad::isKeyPressed(unsigned int keyCode) {
-  if ((_keysDown & keyCode) > 0 && (_keysRead & keyCode) == 0) {
-    _keysDown -= keyCode;
-    _keysRead += keyCode; // ack key pressed -> do not show as pressed until key up and down again
+  if ((keysDown & keyCode) > 0 && (keysRead & keyCode) == 0) {
+    keysDown -= keyCode;
+    keysRead += keyCode; // ack key pressed -> do not show as pressed until key up and down again
     return true;
   }
   return false;
