@@ -40,8 +40,7 @@ void MillingCtrl::start(File _file) {
   Serial.println(" total commands to execute");
 
   // done loading
-  sendCommand(String(char(18))); // soft-reset
-  reset();
+  state = STATE_READY;
 }
 
 void MillingCtrl::stop() {
@@ -54,7 +53,7 @@ byte MillingCtrl::update(int deltaMs) {
   everySecondTimer -= deltaMs;
   if (everySecondTimer <= 0) {
     everySecondTimer += 1000;
-    queryStatus = true;
+    queryStatusReport();
 
     if (state == STATE_RUNNING) {
       elapsedSeconds++;
@@ -68,45 +67,39 @@ byte MillingCtrl::update(int deltaMs) {
   }
   else if (keyPad.isKeyPressed(KEYCODE_B)) { // stop
     Serial.println("Stopped");
-    sendCommand(String(char(18))); // soft-reset
-    reset(); // TODO: confirm?
+    state = STATE_READY; // TODO: confirm?
   }
   else if (keyPad.isKeyPressed(KEYCODE_C)) { // pause
     Serial.println("Paused");
     if (state == STATE_RUNNING) {
       state = STATE_PAUSED;
-      sendCommand("!"); // hold
-      commandAwaitReply = false; // not going to receive resposne for hold command
     }
   }
   else if (keyPad.isKeyPressed(KEYCODE_D)) { // play
     Serial.println("Running milling " + String(file.name()));
     if (state == STATE_READY) {
       reset();
-      sendCommand("~"); // resume
       state = STATE_RUNNING;
     }
     else if (state == STATE_PAUSED) {
-      error = false; // paused after error condition
-      sendCommand("~"); // resume
       state = STATE_RUNNING;
     }
   }
 
-  receiveResponse();
-
   // TODO: zero out the machine function
 
-  if (!commandAwaitReply && !error) { // can send another command, previous one was ACK
-    if (queryStatus) {
-      sendCommand("?");
-      queryStatus = false;
-    }
-    else if (state == STATE_RUNNING) {
-      sendNextCommand();
-    }
+  switch (state) {
+    case STATE_READY:
+      showReady();
+      break;
+    case STATE_RUNNING:
+      streamCommands();
+      showRunning();
+      break;
+    case STATE_PAUSED:
+      showRunning();
+      break;
   }
-  showStatus();
 
   return MILLING_RESULT_NONE;
 }
@@ -117,9 +110,23 @@ void MillingCtrl::reset() {
   elapsedSeconds = 0;
   currentLine = 0;
   currentCommand = "";
-  commandAwaitReply = false;
-  error = false;
+  commandAck = true;
   state = STATE_READY;
+}
+
+void MillingCtrl::streamCommands() {
+  readResponse();
+
+  if (commandAck) { // can send another command, previous one was ACK
+    sendNextCommand();
+  }
+}
+
+void MillingCtrl::queryStatusReport() {
+  Serial2.print('?');
+  Serial2.print('\n');
+  Serial2.flush();
+  delay(1);
 }
 
 void MillingCtrl::sendNextCommand() {
@@ -129,62 +136,54 @@ void MillingCtrl::sendNextCommand() {
     line = file.readStringUntil('\n');
     if (isValidCommand(line)) {
       line.trim();
-      sendCommand(line);
+      Serial2.print(line);
+      Serial2.print('\n');
+      Serial2.flush();
 
+      Serial.println(line);
       currentCommand = line;
       currentLine++;
+      commandAck = false;
+
+      delay(10);
     }
   }
   else {
     Serial.println("Done " + String(file.name()));
-    currentCommand = "Finished";
-    state = STATE_READY;
+    // todo
+    //state = STATE_READY;
   }
 }
 
-void MillingCtrl::sendCommand(String command) {
-  Serial2.print(command);
-  Serial2.print('\n');
-  Serial2.flush();
-
-  Serial.println(command);
-  commandAwaitReply = true;
-
-  delay(10);
-}
-
-void MillingCtrl::receiveResponse() {
+void MillingCtrl::readResponse() {
+  char current;
   String response;
 
   while (Serial2.available()) {
-    response += char(Serial2.read());
-    delay(1);
+    current = char(Serial2.read());
+    if (current == '\n') {
+      break; // only one reply at a time
+    }
+    response += current;
   }
 
   if (response.length() > 0) {
     response.trim();
+    Serial.println(response);
 
-    if (response.startsWith("<")) {
-      // machine status report
-      Serial.println("Report: " + response);
-      parseStatusReport(response);
-      commandAwaitReply = false;
-    }
-    else if (response.startsWith("ok")) {
+    if (response == "ok") {
       // ok response
-      Serial.println("Ack: " + response);
-      commandAwaitReply = false;
+      commandAck = true;
     }
-    else if (response.startsWith("error")) {
+    else if (response.startsWith("<")) {
+      // machine status report
+      parseStatusReport(response);
+    }
+    else if (response.startsWith("error") != -1) {
       // error reponse
-      Serial.println("Error: " + response);
       currentCommand = response;
-      commandAwaitReply = false;
       state = STATE_PAUSED;
       error = true;
-    }
-    else {
-      Serial.println("Unsupported: ->" + response + "<-");
     }
   }
 }
@@ -193,46 +192,25 @@ void MillingCtrl::parseStatusReport(String report) {
   char token;
   String value;
 
-  byte valueIndex = 0;
-  byte coordinateIndex = 0;
+  byte reportIndex;
+  byte coordinateIndex;
 
   // format: <Run|MPos:-0.950,-4.887,-2.500|FS:1010,1000>
 
   for (int i = 0; i < report.length(); i++) {
-    token = report.charAt(i);
+    token = report.chatAt(i);
     if (token == '<') {
       continue; // start
       value = "";
     }
-    else if (token == '|' || token == ':') {
-      if (valueIndex == 0) { // machine status
-        machineStatus.state = value;
-        value = "";
-        valueIndex++;
-      }
-      else if (valueIndex == 3) { // z coordinate
-        machineStatus.z = value.toFloat();
-        value = "";
-        valueIndex++;
-      }
-      else {
-        value = "";
-      }
+    else if (token == '|') {
+      
+    }
+    else if (token == ':') {
+      
     }
     else if (token == ',') {
-      if (valueIndex == 1) { // x coordinate
-        machineStatus.x = value.toFloat();
-        value = "";
-        valueIndex++;
-      }
-      else if (valueIndex == 2) { // y coordinate
-        machineStatus.y = value.toFloat();
-        value = "";
-        valueIndex++;
-      }
-      else {
-        value = "";
-      }
+      
     }
     else if (token == '>') {
       break; // stop
@@ -243,7 +221,7 @@ void MillingCtrl::parseStatusReport(String report) {
   }
 }
 
-void MillingCtrl::showStatus() {
+void MillingCtrl::showRunning() {
   float progress = (float) currentLine / totalLines;
 
   ui.firstPage();
@@ -253,31 +231,38 @@ void MillingCtrl::showStatus() {
     ui.drawProgressBar(9, progress);
 
     ui.drawAxisIcon(0, 20);
-    ui.drawStr(9, 26, "X" + String(machineStatus.x));
-    ui.drawStr(49, 26, "Y" + String(machineStatus.y));
-    ui.drawStr(90, 26, "Z" + String(machineStatus.z));
+    ui.drawStr(8, 26, "X-65.44");
+    ui.drawStr(49, 26, "Y21.626");
+    ui.drawStr(90, 26, "Z-2");
 
     ui.drawClockIcon(0, 28);
-    ui.drawStr(9, 35, ui.formatTime(elapsedSeconds));
-    byte len = machineStatus.state.length();
-    if (len > 0) {
-      ui.drawStr(128 - len * 5, 35, machineStatus.state);
-    }
+    ui.drawStr(8, 35, ui.formatTime(elapsedSeconds));
 
     ui.drawStr(0, 46, currentCommand);
-
-    if (state == STATE_READY) {
-      ui.drawTextButton(0, "Back");
-    }
-    else {
-      ui.drawStopButton(1);
-    }
+    
+    ui.drawStopButton(1);
     if (state == STATE_RUNNING) {
       ui.drawPauseButton(2);
     }
-    else {
+    if (state == STATE_PAUSED) {
       ui.drawPlayButton(3);
     }
+  } while (ui.nextPage());
+}
+
+void MillingCtrl::showReady() {
+  ui.firstPage();
+  do {
+    ui.setFont(u8g2_font_5x8_mr);
+    ui.drawStr(0, 7, file.name());
+    ui.drawStr(0, 16, "Ready " + String(totalLines) + " commands");
+    //ui.drawProgressBar(9, progress);
+
+    // commands history
+    // elapsed time ? estimated time?
+
+    ui.drawTextButton(0, "Back");
+    ui.drawPlayButton(3);
   } while (ui.nextPage());
 }
 

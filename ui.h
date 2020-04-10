@@ -9,7 +9,6 @@ class UI {
   public:
     UI(U8G2 *lcd, STATE *state, byte backlightPin);
     void setup();
-    void update();
 
     void firstPage();
     uint8_t nextPage(); 
@@ -19,6 +18,8 @@ class UI {
 
     void drawPickList(u8g2_uint_t y, byte size, String items[], byte itemsCount, int selectedIndex);
     void drawProgressBar(int16_t y, float progress);
+    void drawAxisIcon(u8g2_uint_t x, u8g2_uint_t y);
+    void drawClockIcon(u8g2_uint_t x, u8g2_uint_t y);
     void drawStopButton(byte pos);
     void drawPlayButton(byte pos);
     void drawPauseButton(byte pos);
@@ -30,9 +31,6 @@ class UI {
     STATE &state;
     byte backlightPin;
     byte frame = 0;
-
-    void drawLogScreen();
-    void drawMillingScreen();
 
     void drawButton(int16_t x, int16_t width);
     int16_t calculateButtonLeft(byte pos);

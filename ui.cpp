@@ -18,56 +18,6 @@ void UI::setup() {
   lcd.clear();
 }
 
-void UI::update() {
-  frame = (frame >= 1) ? 0 : frame + 1;
-  lcd.firstPage();
-
-  do {
-    //drawMillingScreen();
-    //drawLogScreen();
-  } while (lcd.nextPage());
-}
-
-void UI::drawLogScreen() {
-  lcd.setFont(u8g2_font_5x8_mr);
-  lcd.setColorIndex(1);
-  lcd.drawLog(0, 7, state.logger);
-}
-
-void UI::drawMillingScreen() {
-  lcd.setFont(u8g2_font_5x8_mr);
-  lcd.setColorIndex(1);
-
-  float progress = 0;
-  String progressStr;
-  int progressBar;
-  String timeStr = formatTime(state.milling.elapsedSeconds);
-
-  if (state.milling.totalLines > 0) {
-    progress = (float) state.milling.currentLine / state.milling.totalLines;
-  }
-  if (progress > 1) {
-    progress = 1;
-  }
-
-  progressStr += (int) round(progress * 100);
-  progressStr += "%";
-  progressBar = 122 * progress;
-
-  lcd.drawStr(0, 8, state.milling.filename.c_str());
-  lcd.drawRFrame(0, 10, 128, 10, 3);
-  lcd.drawRBox(1, 11, 4 + progressBar, 8, 2); // 5->127 (122 steps)
-  lcd.drawStr(0, 28, progressStr.c_str());
-  lcd.drawStr(128 - (5 * timeStr.length()), 28, timeStr.c_str());
-
-  //lcd.drawLog(0, 38, state.logger);
-
-  drawTextButton(0, "Load");
-  drawPlayButton(1);
-  drawPauseButton(2);
-  drawStopButton(3);
-}
-
 void UI::firstPage() {
   lcd.firstPage();
 }
@@ -120,6 +70,18 @@ void UI::drawProgressBar(int16_t y, float progress) {
   int progressBar = 122 * progress;
   lcd.drawRFrame(0, y, 128, 10, 3);
   lcd.drawRBox(1, y + 1, 4 + progressBar, 8, 2); // 5->127 (122 steps)
+}
+
+void UI::drawAxisIcon(u8g2_uint_t x, u8g2_uint_t y) {
+  lcd.drawLine(x, y, x, y + 6);
+  lcd.drawLine(x, y + 6, x + 6, y + 6);
+  lcd.drawLine(x, y + 6, x + 6, y);
+}
+
+void UI::drawClockIcon(u8g2_uint_t x, u8g2_uint_t y) {
+  lcd.drawCircle(x + 3, y + 3, 3, U8G2_DRAW_ALL);
+  lcd.drawLine(x + 3, y + 3, x + 4, y + 3);
+  lcd.drawLine(x + 3, y + 3, x + 3, y + 2);
 }
 
 void UI::drawPlayButton(byte pos) {
