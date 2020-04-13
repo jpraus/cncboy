@@ -31,12 +31,11 @@ KeyPad keypad(KEY_FUNCTION, KEY_X, KEY_Y, KEY_Z);
 MillingCtrl millingCtrl(&grbl, &ui, &keypad);
 FilesCtrl filesCtrl(&ui, &keypad, &SDSPI, SD_CS);
 
-unsigned long deltaMsRef = 0;
-
 // screen
 #define SCREEN_HOME 0
 #define SCREEN_FILES 1
 #define SCREEN_MILLING 2
+#define SCREEN_CALIBRATION 3
 
 byte screen = SCREEN_FILES;
 
@@ -54,8 +53,7 @@ void setup() {
   filesCtrl.setup();
 
   // initial delay to warm everything up
-  delay(1000);
-  deltaMsRef = millis();
+  delay(200);
 
   // init screen
   screen = SCREEN_FILES;
@@ -63,10 +61,9 @@ void setup() {
 }
 
 void loop() {
-  int deltaMs = getDeltaMs();
   byte result;
 
-  keypad.update(deltaMs);
+  keypad.update();
 
   switch (screen) {
     case SCREEN_HOME:
@@ -74,7 +71,7 @@ void loop() {
 
     case SCREEN_FILES:
       // screen where you can selected files to start milling
-      result = filesCtrl.update(deltaMs);
+      result = filesCtrl.update();
       switch (result) {
         case FILES_RESULT_SELECTED:
           millingCtrl.start(filesCtrl.getSelectedFile());
@@ -88,7 +85,7 @@ void loop() {
 
     case SCREEN_MILLING:
       // running milling program
-      result = millingCtrl.update(deltaMs);
+      result = millingCtrl.update();
       switch (result) {
         case MILLING_RESULT_BACK:
           millingCtrl.stop();
@@ -100,15 +97,4 @@ void loop() {
   }
 
   delay(1);
-}
-
-int getDeltaMs() {
-  unsigned long time = millis();
-  if (time < deltaMsRef) {
-    deltaMsRef = time; // overflow of millis happen, we lost some millis but that does not matter for us, keep moving on
-    return time;
-  }
-  int deltaMs = time - deltaMsRef;
-  deltaMsRef += deltaMs;
-  return deltaMs;
 }

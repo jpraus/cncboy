@@ -18,7 +18,7 @@ class FilesCtrl {
     void setup();
     void start();
     void stop();
-    byte update(int deltaMs);
+    byte update();
     File getSelectedFile();
 
   private:

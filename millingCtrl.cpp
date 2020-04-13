@@ -42,6 +42,7 @@ void MillingCtrl::start(File _file) {
   // done loading
   grbl.restart();
   grbl.sendReset();
+  grbl.sendCommand("G91"); // relative coordinates for calibration
   reset();
 }
 
@@ -51,12 +52,12 @@ void MillingCtrl::stop() {
   }
 }
 
-byte MillingCtrl::update(int deltaMs) {
-  grbl.update(deltaMs);
-  
-  everySecondTimer -= deltaMs;
-  if (everySecondTimer <= 0) {
-    everySecondTimer += 1000;
+byte MillingCtrl::update() {
+  grbl.update();
+
+  if (millis() >= millisRef + 1000) { // everysecond timer
+    millisRef = millis();
+    redraw = true;
     if (state == STATE_RUNNING) {
       elapsedSeconds++;
     }
@@ -67,22 +68,27 @@ byte MillingCtrl::update(int deltaMs) {
       return MILLING_RESULT_BACK;
     }
   }
-  else if (keyPad.isKeyPressed(KEYCODE_B)) { // stop
+  else if (keyPad.isKeyPressed(KEYCODE_B)) { // stop / home
     if (state != STATE_READY) {
       Serial.println("Stopped");
       grbl.restart();
       grbl.sendReset();
       reset(); // TODO: confirm?
     }
+    else { // homing
+      // TODO: command sequence handling (await ACK)
+      grbl.sendCommand("G90");
+      grbl.sendCommand("G0 X0 Y0");
+      grbl.sendCommand("G91");
+      // todo prevent multiple calls
+    }
   }
-  else if (keyPad.isKeyPressed(KEYCODE_C)) { // pause / calibrate
+  else if (keyPad.isKeyPressed(KEYCODE_C)) { // pause
     if (state == STATE_RUNNING) {
       Serial.println("Paused");
       state = STATE_PAUSED;
       grbl.sendHold();
-    }
-    else if (state == STATE_READY) {
-      return MILLING_RESULT_CALIBRATE;
+      redraw = true;
     }
   }
   else if (keyPad.isKeyPressed(KEYCODE_D)) { // play
@@ -91,12 +97,18 @@ byte MillingCtrl::update(int deltaMs) {
       reset();
       grbl.sendResume();
       state = STATE_RUNNING;
+      redraw = true;
     }
     else if (state == STATE_PAUSED) {
       grbl.sendResume();
       state = STATE_RUNNING;
+      redraw = true;
     }
   }
+  else if (state == STATE_READY) {
+    calibration();
+  }
+  
 
   // TODO: zero out the machine function
 
@@ -107,21 +119,123 @@ byte MillingCtrl::update(int deltaMs) {
     state = STATE_PAUSED;
     error = true;
     currentCommand = grbl.getLastCommandError();
+    redraw = true;
   }
 
-  showStatus();
+  if (redraw) {
+    showStatus();
+    redraw = false;
+    //Serial.println("DEBUG: Redraw");  
+  }
 
   return MILLING_RESULT_NONE;
 }
 
+void MillingCtrl::calibration() {
+  float x = 0;
+  float nx = 0;
+  float y = 0;
+  float ny = 0;
+  float z = 0;
+  float nz = 0;
+  
+  if (keyPad.isKeyPressed(KEYCODE_CENTER)) {
+    // set XY-home
+    // TODO: command sequence handling (await ACK)
+    grbl.sendCommand("G90");
+    grbl.sendCommand("G10 L20 P1 X0 Y0");
+    grbl.sendCommand("G91");
+    return;
+  }
+  if (keyPad.isKeyPressed(KEYCODE_ZCENTER)) {
+    // set Z-home
+    // TODO: command sequence handling (await ACK)
+    grbl.sendCommand("G90");
+    grbl.sendCommand("G10 L20 P1 Z0");
+    grbl.sendCommand("G91");
+    return;
+  }
+
+  y = calibrationStep(keyPad.isKeyHold(KEYCODE_UP), 0, 800);
+  ny = calibrationStep(keyPad.isKeyHold(KEYCODE_DOWN), 1, 800);
+  x = calibrationStep(keyPad.isKeyHold(KEYCODE_RIGHT), 2, 800);
+  nx = calibrationStep(keyPad.isKeyHold(KEYCODE_LEFT), 3, 800);
+  z = calibrationStep(keyPad.isKeyHold(KEYCODE_ZUP), 4, 200);
+  nz = calibrationStep(keyPad.isKeyHold(KEYCODE_ZDOWN), 5, 200);
+
+  String command;
+  if (x > 0) {
+    command += " X" + String(x);
+  }
+  else if (x < 0 && nx > 0) {
+    command += " X-" + String(nx);
+  }
+  if (y > 0) {
+    command += " Y" + String(y);
+  }
+  else if (y < 0 && ny > 0) {
+    command += " Y-" + String(ny);
+  }
+  if (z > 0) {
+    command += " Z" + String(z);
+  }
+  else if (z < 0 && nz > 0) {
+    command += " Z-" + String(nz);
+  }
+  if (command.length() > 0) {
+    grbl.sendCommand("G0" + command);
+    redraw = true;
+  }
+}
+
+float MillingCtrl::calibrationStep(unsigned int holdDownTime, byte index, unsigned int mmPerMinute) {
+  unsigned int treshold = calibrationAccelTresholds[index];
+  float step;
+  float mmPerHalfSecond = mmPerMinute / 120.0;
+
+  // 800mm/min (14mm/s)
+  if (holdDownTime == 0) {
+    calibrationAccelTresholds[index] = 0; // reset
+    return -1; // no move in this direction
+  }
+
+  if (holdDownTime < treshold) {
+    return 0; // treshold not reached, but moving in this direction
+  }
+
+  if (treshold == 0) {
+    treshold = 200;
+    step = 0.1;
+  }
+  else if (treshold == 200) {
+    treshold = 400;
+    step = 0.5;
+  }
+  else if (treshold == 400) {
+    treshold = 600;
+    step = ceil(mmPerHalfSecond * 10 / 4) / 10.0;
+  }
+  else if (treshold == 600) {
+    treshold = 800;
+    step = ceil(mmPerHalfSecond * 10 / 2) / 10.0;
+  }
+  else if (treshold >= 800) {
+    treshold += 500;
+    step = ceil(mmPerHalfSecond * 10) / 10.0;
+  }
+
+  calibrationAccelTresholds[index] = treshold;
+  return step;
+}
+
 void MillingCtrl::reset() {
   file.seek(0); // reset file
-  everySecondTimer = 0;
   elapsedSeconds = 0;
   currentLine = 0;
   currentCommand = "";
   error = false;
   state = STATE_READY;
+  redraw = true;
 }
 
 void MillingCtrl::sendNextCommand() {
@@ -135,12 +249,14 @@ void MillingCtrl::sendNextCommand() {
 
       currentCommand = line;
       currentLine++;
+      redraw = true;
     }
   }
   else {
     Serial.println("Done " + String(file.name()));
     currentCommand = "Finished";
     state = STATE_READY;
+    redraw = true;
   }
 }
 
@@ -170,7 +286,7 @@ void MillingCtrl::showStatus() {
 
     if (state == STATE_READY) {
       ui.drawTextButton(0, "Back");
-      ui.drawTextButton(1, "Cal.");
+      ui.drawTextButton(1, "Home");
     }
     else {
       ui.drawStopButton(1);

@@ -16,10 +16,10 @@ class MillingCtrl {
     MillingCtrl(Grbl *grbl, UI *ui, KeyPad *keyPad);
     void start(File file);
     void stop();
-    byte update(int deltaMs);
+    byte update();
 
   private:
-	Grbl &grbl;
+	  Grbl &grbl;
     UI &ui;
     KeyPad &keyPad;
 
@@ -27,14 +27,19 @@ class MillingCtrl {
     int totalLines;
     byte state;
 
-    int everySecondTimer;
+    unsigned long millisRef;
     int elapsedSeconds;
     int currentLine;
     String currentCommand;
     bool error;
+    bool redraw;
+
+    unsigned int calibrationAccelTresholds[6] = {0, 0, 0, 0, 0, 0}; // +y, -y, +x, -x, +z, -z
 
     void reset();
     void sendNextCommand();
+    void calibration();
+    float calibrationStep(unsigned int holdDownTime, byte index, unsigned int mmPerMinute);
     void showStatus();
     void showLoading(float progress);
     boolean isValidCommand(String line);

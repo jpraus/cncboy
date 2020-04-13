@@ -1,9 +1,8 @@
 #include "millingCtrl.h"
 
-byte Grbl::update(int deltaMs) {
-  everySecondTimer -= deltaMs;
-  if (everySecondTimer <= 0) {
-    everySecondTimer += 1000;
+byte Grbl::update() {
+  if (millis() >= millisRef + 1000) { // everysecond timer
+    millisRef = millis();
     queryStatus = true;
   }
 
@@ -16,7 +15,6 @@ byte Grbl::update(int deltaMs) {
 }
 
 void Grbl::restart() {
-  everySecondTimer = 0;
   awaitingReply = false;
   error = false;
 }

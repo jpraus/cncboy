@@ -12,7 +12,7 @@ struct MachineStatus {
 
 class Grbl {
   public:
-    byte update(int deltaMs);
+    byte update();
     void restart();
 
     bool canSendCommand();
@@ -25,7 +25,7 @@ class Grbl {
     MachineStatus getMachineStatus();
 
   private:
-    int everySecondTimer;
+    unsigned long millisRef;
     bool awaitingReply;
     bool error;
     String errorMessage;

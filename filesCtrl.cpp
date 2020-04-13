@@ -45,7 +45,7 @@ void FilesCtrl::stop() {
   folder.close();
 }
 
-byte FilesCtrl::update(int deltaMs) {
+byte FilesCtrl::update() {
   if (sdCard && loaded) {
     return pickingFile();
   }
