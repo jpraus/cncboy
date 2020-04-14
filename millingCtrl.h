@@ -16,7 +16,7 @@ class MillingCtrl {
     MillingCtrl(Grbl *grbl, UI *ui, KeyPad *keyPad);
     void start(File file);
     void stop();
-    byte update();
+    byte update(unsigned long nowMillis);
 
   private:
 	  Grbl &grbl;
@@ -27,7 +27,8 @@ class MillingCtrl {
     int totalLines;
     byte state;
 
-    unsigned long millisRef;
+    unsigned long secondsTimerRef;
+    unsigned long redrawTimerRef;
     int elapsedSeconds;
     int currentLine;
     String currentCommand;

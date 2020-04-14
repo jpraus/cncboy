@@ -26,12 +26,12 @@ void KeyPad::setup() {
   }
 }
 
-void KeyPad::update() {
-  if (millisRef > 0 && millis() < millisRef + KEYPAD_READ_TIMER) {
+void KeyPad::update(unsigned long nowMillis) {
+  if (millisRef > 0 && nowMillis < millisRef + KEYPAD_READ_TIMER) {
     return;
   }
-  unsigned int deltaMs = millis() - millisRef;
-  millisRef = millis();
+  unsigned int deltaMs = nowMillis - millisRef;
+  millisRef = nowMillis;
 
   unsigned int functionKey = analogRead(functionsPin); // 0-4095
   unsigned int xKey = analogRead(xPin); // 0-4095

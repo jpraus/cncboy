@@ -61,9 +61,10 @@ void setup() {
 }
 
 void loop() {
+  unsigned long nowMillis = millis();
   byte result;
 
-  keypad.update();
+  keypad.update(nowMillis);
 
   switch (screen) {
     case SCREEN_HOME:
@@ -85,7 +86,7 @@ void loop() {
 
     case SCREEN_MILLING:
       // running milling program
-      result = millingCtrl.update();
+      result = millingCtrl.update(nowMillis);
       switch (result) {
         case MILLING_RESULT_BACK:
           millingCtrl.stop();

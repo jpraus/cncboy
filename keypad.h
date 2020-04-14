@@ -22,7 +22,7 @@ class KeyPad {
   public:
     KeyPad(byte functionsPin, byte xPin, byte yPin, byte zPin);
     void setup();
-    void update();
+    void update(unsigned long nowMillis);
     bool isAnyKeyPressed();
     bool isKeyPressed(byte keyCode);
     unsigned int isKeyHold(byte keyCode);

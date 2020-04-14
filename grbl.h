@@ -12,7 +12,7 @@ struct MachineStatus {
 
 class Grbl {
   public:
-    byte update();
+    byte update(unsigned long nowMillis);
     void restart();
 
     bool canSendCommand();

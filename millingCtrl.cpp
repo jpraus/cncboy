@@ -52,11 +52,11 @@ void MillingCtrl::stop() {
   }
 }
 
-byte MillingCtrl::update() {
-  grbl.update();
+byte MillingCtrl::update(unsigned long nowMillis) {
+  grbl.update(nowMillis);
 
-  if (millis() >= millisRef + 1000) { // everysecond timer
-    millisRef = millis();
+  if (secondsTimerRef + 1000 <= nowMillis) { // everysecond timer
+    secondsTimerRef = nowMillis;
     redraw = true;
     if (state == STATE_RUNNING) {
       elapsedSeconds++;
@@ -122,10 +122,11 @@ byte MillingCtrl::update() {
     redraw = true;
   }
 
-  if (redraw) {
+  if (redraw && redrawTimerRef + 100 <= nowMillis) { // redraw at max rate of 10/s
     showStatus();
+    redrawTimerRef = nowMillis;
     redraw = false;
-    //Serial.println("DEBUG: Redraw");  
+    //Serial.println("DEBUG: Redraw");
   }
 
   return MILLING_RESULT_NONE;
