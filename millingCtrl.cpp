@@ -42,7 +42,7 @@ void MillingCtrl::start(File _file) {
   // done loading
   grbl.restart();
   grbl.sendReset();
-  grbl.sendCommand("G91"); // relative coordinates for calibration
+  grbl.sendCommand("G90"); // relative coordinates for calibration
   reset();
 }
 
@@ -76,11 +76,7 @@ byte MillingCtrl::update(unsigned long nowMillis) {
       reset(); // TODO: confirm?
     }
     else { // homing
-      // TODO: command sequence handling (await ACK)
-      grbl.sendCommand("G90");
       grbl.sendCommand("G0 X0 Y0");
-      grbl.sendCommand("G91");
-      // todo prevent multiple calls
     }
   }
   else if (keyPad.isKeyPressed(KEYCODE_C)) { // pause
@@ -143,17 +139,13 @@ void MillingCtrl::calibration() {
   if (keyPad.isKeyPressed(KEYCODE_CENTER)) {
     // set XY-home
     // TODO: command sequence handling (await ACK)
-    grbl.sendCommand("G90");
     grbl.sendCommand("G10 L20 P1 X0 Y0");
-    grbl.sendCommand("G91");
     return;
   }
   if (keyPad.isKeyPressed(KEYCODE_ZCENTER)) {
     // set Z-home
     // TODO: command sequence handling (await ACK)
-    grbl.sendCommand("G90");
     grbl.sendCommand("G10 L20 P1 Z0");
-    grbl.sendCommand("G91");
     return;
   }
 
@@ -184,7 +176,10 @@ void MillingCtrl::calibration() {
     command += " Z-" + String(nz);
   }
   if (command.length() > 0) {
+    // TODO: command sequence handling (await ACK)
+    grbl.sendCommand("G91");
     grbl.sendCommand("G0" + command);
+    grbl.sendCommand("G90");
     redraw = true;
   }
 }

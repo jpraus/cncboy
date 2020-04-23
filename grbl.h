@@ -27,6 +27,7 @@ class Grbl {
   private:
     unsigned long millisRef;
     bool awaitingReply;
+    String partialResponse;
     bool error;
     String errorMessage;
     bool queryStatus;

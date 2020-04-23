@@ -58,41 +58,51 @@ void Grbl::sendCommand(String command) {
   awaitingReply = true;
   error = false;
   errorMessage = "";
+  partialResponse = "";
 
-  delay(10);
+  //delay(10);
 }
 
 void Grbl::receiveResponse() {
-  String response;
+  String data;
 
   while (Serial2.available()) {
-    response += char(Serial2.read());
-    delay(1);
+    data += char(Serial2.read());
+    //delay(1);
   }
 
-  if (response.length() > 0) {
+  if (data.length() > 0) {
+    String response = String(data);
     response.trim();
 
-    if (response.startsWith("<")) {
-      // machine status report
-      Serial.println("Report: " + response);
-      parseStatusReport(response);
-      awaitingReply = false;
+    if (partialResponse.length() > 0) {
+      response = partialResponse + response;
     }
-    else if (response.startsWith("ok")) {
-      // ok response
-      Serial.println("Ack: " + response);
+
+    if (response.endsWith("ok")) {
+      if (response.startsWith("<")) {
+        // machine status report
+        Serial.println("Report: " + response);
+        parseStatusReport(response);
+      }
+      else {
+        Serial.println("Ack: " + response);
+      }
+      partialResponse = "";
       awaitingReply = false;
     }
     else if (response.startsWith("error")) {
       // error reponse
       Serial.println("Error: " + response);
       errorMessage = response;
+      partialResponse = "";
       awaitingReply = false;
       error = true;
     }
     else {
-      Serial.println("Unsupported: ->" + response + "<-");
+      // partial response, wait for another data
+      partialResponse += data;
+      Serial.println("Partial response: ->" + response + "<-");
     }
   }
 }
