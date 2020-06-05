@@ -3,6 +3,8 @@
 
 #include "Arduino.h"
 
+#define GRBL_BUFFER_SIZE 127
+
 struct MachineStatus {
   String state;
   float x;
@@ -13,13 +15,14 @@ struct MachineStatus {
 class Grbl {
   public:
     void start();
-    byte update(unsigned long nowMillis);
     void restart();
+    byte update(unsigned long nowMillis);
 
-    bool canSendCommand();
     bool isError();
     String getLastCommandError();
-    void sendCommand(String command);
+    void clearError();
+    bool canEnqueueCommand();
+    bool enqueueCommand(String command, bool realTime=false);
     void sendHold();
     void sendResume();
     void sendReset();
@@ -28,17 +31,25 @@ class Grbl {
   private:
     unsigned long millisRef;
     String lastCommand;
-    bool awaitingReply;
-    String partialResponse;
+    String nextCommand;
     bool error;
     bool retrying;
     String errorMessage;
     bool queryStatus;
+
+    // streaming protocol counters
+    byte bufferSize = GRBL_BUFFER_SIZE;
+    byte streamedCommandsTail = 0;
+    byte streamedCommandsHead = 0;
+    byte streamedCommandsLens[GRBL_BUFFER_SIZE];
+
     MachineStatus machineStatus;
     File logFile;
 
+    void sendCommand(String command);
     void receiveResponse();
     void parseStatusReport(String report);
+    void initLogFile();
 };
 
 #endif

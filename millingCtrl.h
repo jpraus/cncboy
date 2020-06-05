@@ -35,12 +35,12 @@ class MillingCtrl {
     bool error;
     bool redraw;
 
-    unsigned int calibrationAccelTresholds[6] = {0, 0, 0, 0, 0, 0}; // +y, -y, +x, -x, +z, -z
+    unsigned int joggingAccelTresholds[6] = {0, 0, 0, 0, 0, 0}; // +y, -y, +x, -x, +z, -z
 
     void reset();
     void sendNextCommand();
-    void calibration();
-    float calibrationStep(unsigned int holdDownTime, byte index, unsigned int mmPerMinute);
+    void jogging();
+    float joggingStep(unsigned int holdDownTime, byte index, unsigned int mmPerMinute);
     void showStatus();
     void showLoading(float progress);
     boolean isValidCommand(String line);

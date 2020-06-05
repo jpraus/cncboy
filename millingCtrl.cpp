@@ -42,7 +42,7 @@ void MillingCtrl::start(File _file) {
   // done loading
   grbl.restart();
   grbl.sendReset();
-  grbl.sendCommand("G90"); // relative coordinates for calibration
+  grbl.enqueueCommand("G90"); // absolute coordinates by default
   reset();
 }
 
@@ -71,12 +71,12 @@ byte MillingCtrl::update(unsigned long nowMillis) {
   else if (keyPad.isKeyPressed(KEYCODE_B)) { // stop / home
     if (state != STATE_READY) {
       Serial.println("Stopped");
-      grbl.restart();
+      grbl.clearError();
       grbl.sendReset();
       reset(); // TODO: confirm?
     }
     else { // homing
-      grbl.sendCommand("G0 X0 Y0");
+      grbl.enqueueCommand("G0 X0 Y0");
     }
   }
   else if (keyPad.isKeyPressed(KEYCODE_C)) { // pause
@@ -102,20 +102,17 @@ byte MillingCtrl::update(unsigned long nowMillis) {
     }
   }
   else if (state == STATE_READY) {
-    calibration();
+    jogging();
   }
-  
 
-  // TODO: zero out the machine function
-
-  if (state == STATE_RUNNING && grbl.canSendCommand()) {
-    sendNextCommand();
-  }
-  else if (grbl.isError()) {
+  if (grbl.isError()) {
     state = STATE_PAUSED;
     error = true;
     currentCommand = grbl.getLastCommandError();
     redraw = true;
+  }
+  else if (state == STATE_RUNNING && grbl.canEnqueueCommand()) {
+    sendNextCommand();
   }
 
   if (redraw && redrawTimerRef + 100 <= nowMillis) { // redraw at max rate of 10/s
@@ -128,7 +125,7 @@ byte MillingCtrl::update(unsigned long nowMillis) {
   return MILLING_RESULT_NONE;
 }
 
-void MillingCtrl::calibration() {
+void MillingCtrl::jogging() {
   float x = 0;
   float nx = 0;
   float y = 0;
@@ -139,24 +136,24 @@ void MillingCtrl::calibration() {
   if (keyPad.isKeyPressed(KEYCODE_CENTER)) {
     // set XY-home
     // TODO: command sequence handling (await ACK)
-    grbl.sendCommand("G10 L20 P0 X0 Y0");
-    grbl.sendCommand("G10 L20 P1 X0 Y0");
+    grbl.enqueueCommand("G10 L20 P0 X0 Y0");
+    grbl.enqueueCommand("G10 L20 P1 X0 Y0");
     return;
   }
   if (keyPad.isKeyPressed(KEYCODE_ZCENTER)) {
     // set Z-home
     // TODO: command sequence handling (await ACK)
-    grbl.sendCommand("G10 L20 P0 Z0");
-    grbl.sendCommand("G10 L20 P1 Z0");
+    grbl.enqueueCommand("G10 L20 P0 Z0");
+    grbl.enqueueCommand("G10 L20 P1 Z0");
     return;
   }
 
-  y = calibrationStep(keyPad.isKeyHold(KEYCODE_UP), 0, 800);
-  ny = calibrationStep(keyPad.isKeyHold(KEYCODE_DOWN), 1, 800);
-  x = calibrationStep(keyPad.isKeyHold(KEYCODE_RIGHT), 2, 800);
-  nx = calibrationStep(keyPad.isKeyHold(KEYCODE_LEFT), 3, 800);
-  z = calibrationStep(keyPad.isKeyHold(KEYCODE_ZUP), 4, 200);
-  nz = calibrationStep(keyPad.isKeyHold(KEYCODE_ZDOWN), 5, 200);
+  y = joggingStep(keyPad.isKeyHold(KEYCODE_UP), 0, 800);
+  ny = joggingStep(keyPad.isKeyHold(KEYCODE_DOWN), 1, 800);
+  x = joggingStep(keyPad.isKeyHold(KEYCODE_RIGHT), 2, 800);
+  nx = joggingStep(keyPad.isKeyHold(KEYCODE_LEFT), 3, 800);
+  z = joggingStep(keyPad.isKeyHold(KEYCODE_ZUP), 4, 200);
+  nz = joggingStep(keyPad.isKeyHold(KEYCODE_ZDOWN), 5, 200);
 
   String command;
   if (x > 0) {
@@ -179,20 +176,19 @@ void MillingCtrl::calibration() {
   }
   if (command.length() > 0) {
     // TODO: command sequence handling (await ACK)
-    grbl.sendCommand("G91 G0" + command);
-    grbl.sendCommand("G90");
+    grbl.enqueueCommand("G91 G0" + command);
     redraw = true;
   }
 }
 
-float MillingCtrl::calibrationStep(unsigned int holdDownTime, byte index, unsigned int mmPerMinute) {
-  unsigned int treshold = calibrationAccelTresholds[index];
+float MillingCtrl::joggingStep(unsigned int holdDownTime, byte index, unsigned int mmPerMinute) {
+  unsigned int treshold = joggingAccelTresholds[index];
   float step;
   float mmPerHalfSecond = mmPerMinute / 120.0;
 
   // 800mm/min (14mm/s)
   if (holdDownTime == 0) {
-    calibrationAccelTresholds[index] = 0; // reset
+    joggingAccelTresholds[index] = 0; // reset
     return -1; // no move in this direction
   }
 
@@ -221,7 +217,7 @@ float MillingCtrl::calibrationStep(unsigned int holdDownTime, byte index, unsign
     step = ceil(mmPerHalfSecond * 10) / 10.0;
   }
 
-  calibrationAccelTresholds[index] = treshold;
+  joggingAccelTresholds[index] = treshold;
   return step;
 }
 
@@ -237,24 +233,27 @@ void MillingCtrl::reset() {
 
 void MillingCtrl::sendNextCommand() {
   String line;
-  
-  if (file.available()) {
+  boolean bufferNotFull;
+
+  do {
+    if (!file.available()) {
+      Serial.println("Done " + String(file.name()));
+      currentCommand = "Finished";
+      state = STATE_READY;
+      break;
+    }
+
     line = file.readStringUntil('\n');
     if (isValidCommand(line)) {
       line.trim();
-      grbl.sendCommand(line);
-
-      currentCommand = line;
-      currentLine++;
-      redraw = true;
+      bufferNotFull = grbl.enqueueCommand(line);
     }
-  }
-  else {
-    Serial.println("Done " + String(file.name()));
-    currentCommand = "Finished";
-    state = STATE_READY;
-    redraw = true;
-  }
+
+    currentCommand = line;
+    currentLine++;
+  } while (bufferNotFull);
+
+  redraw = true;
 }
 
 void MillingCtrl::showStatus() {
