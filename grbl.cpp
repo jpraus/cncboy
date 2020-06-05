@@ -1,9 +1,19 @@
 #include "millingCtrl.h"
 
+void Grbl::start() {
+  String logFilename = String("/logs/");
+  logFilename += String(millis()) + ".log";
+
+  logFile = SD.open(logFilename, FILE_WRITE);
+  Serial.print("Logging to file ");
+  Serial.println(logFile.name());
+}
+
 byte Grbl::update(unsigned long nowMillis) {
   if (nowMillis >= millisRef + 1000) { // everysecond timer
     millisRef = nowMillis;
     queryStatus = true;
+    logFile.flush();
   }
 
   receiveResponse();
@@ -55,12 +65,19 @@ void Grbl::sendCommand(String command) {
   Serial2.flush();
 
   Serial.println(command);
+
+  logFile.print(millis());
+  logFile.print(" > ");
+  logFile.println(command);
+
+  lastCommand = command;
   awaitingReply = true;
   error = false;
   errorMessage = "";
   partialResponse = "";
+  retrying = false;
 
-  //delay(10);
+  //delay(1);
 }
 
 void Grbl::receiveResponse() {
@@ -72,6 +89,10 @@ void Grbl::receiveResponse() {
   }
 
   if (data.length() > 0) {
+    logFile.print(millis());
+    logFile.print(" < ");
+    logFile.print(data);
+
     String response = String(data);
     response.trim();
 
@@ -97,7 +118,16 @@ void Grbl::receiveResponse() {
       errorMessage = response;
       partialResponse = "";
       awaitingReply = false;
-      error = true;
+
+      if (!retrying) {
+        // try again the same command in case of temporary error
+        delay(50);
+        sendCommand(lastCommand);
+        retrying = true;
+      }
+      else {
+        error = true;
+      }
     }
     else {
       // partial response, wait for another data

@@ -4,12 +4,11 @@
 #define STATE_READING 1
 #define STATE_ERROR 2
 
-FilesCtrl::FilesCtrl(UI *ui, KeyPad *keyPad, SPIClass *spi, int csPin) 
-    : ui(*ui), keyPad(*keyPad), spi(*spi), csPin(csPin) {
+FilesCtrl::FilesCtrl(UI *ui, KeyPad *keyPad) 
+    : ui(*ui), keyPad(*keyPad) {
 }
 
 void FilesCtrl::setup() {
-  pinMode(csPin, OUTPUT);
 }
 
 void FilesCtrl::start() {
@@ -20,24 +19,17 @@ void FilesCtrl::start() {
   sdCard = false;
   loaded = false;
   folderName = "/";
-  
-  Serial.print("Initializing SD card .. ");
-  if (!SD.begin(csPin, spi)) {
-    Serial.println("error");
+
+  // we expect SD card is already initialized
+  filesCount = 0;
+  selectedFileIndex = 0;
+  folder = SD.open(folderName, FILE_READ);
+  if (!folder) {
+    Serial.println("Failed to open root");
   }
   else {
-    Serial.println("OK");
-
-    filesCount = 0;
-    selectedFileIndex = 0;
-    folder = SD.open(folderName, FILE_READ);
-    if (!folder) {
-      Serial.println("Failed to open root");
-    }
-    else {
-      Serial.println("Reading root");
-      sdCard = true;
-    }
+    Serial.println("Reading root");
+    sdCard = true;
   }
 }
 

@@ -29,7 +29,7 @@ UI ui(&u8g2, DSPY_BCKLIGHT);
 KeyPad keypad(KEY_FUNCTION, KEY_X, KEY_Y, KEY_Z);
 
 MillingCtrl millingCtrl(&grbl, &ui, &keypad);
-FilesCtrl filesCtrl(&ui, &keypad, &SDSPI, SD_CS);
+FilesCtrl filesCtrl(&ui, &keypad);
 
 // screen
 #define SCREEN_HOME 0
@@ -54,6 +54,16 @@ void setup() {
 
   // initial delay to warm everything up
   delay(200);
+
+  // init SD card
+  pinMode(SD_CS, OUTPUT);
+  Serial.println("Initializing SD card .. ");
+  if (!SD.begin(SD_CS, SDSPI)) {
+    Serial.println("No SD Card");
+  }
+
+  // init GRBL interface
+  grbl.start();
 
   // init screen
   screen = SCREEN_FILES;

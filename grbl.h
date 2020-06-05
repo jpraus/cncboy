@@ -12,6 +12,7 @@ struct MachineStatus {
 
 class Grbl {
   public:
+    void start();
     byte update(unsigned long nowMillis);
     void restart();
 
@@ -26,12 +27,15 @@ class Grbl {
 
   private:
     unsigned long millisRef;
+    String lastCommand;
     bool awaitingReply;
     String partialResponse;
     bool error;
+    bool retrying;
     String errorMessage;
     bool queryStatus;
     MachineStatus machineStatus;
+    File logFile;
 
     void receiveResponse();
     void parseStatusReport(String report);

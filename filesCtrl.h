@@ -14,7 +14,7 @@
 
 class FilesCtrl {
   public:
-    FilesCtrl(UI *ui, KeyPad *keyPad, SPIClass *spi, int csPin);
+    FilesCtrl(UI *ui, KeyPad *keyPad);
     void setup();
     void start();
     void stop();
@@ -24,8 +24,6 @@ class FilesCtrl {
   private:
     UI &ui;
     KeyPad &keyPad;
-    SPIClass &spi;
-    int csPin;
 
     String folderName;
     File folder;
