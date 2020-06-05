@@ -1,10 +1,17 @@
 #include "millingCtrl.h"
 
 void Grbl::start() {
-  String logFilename = String("/logs/");
-  logFilename += String(millis()) + ".log";
+  String logFilename;
+  int counter = 1;
+
+  // find new unique name for the log file
+  do {
+    logFilename = "/logs/" + String(counter) + ".log";
+    counter++;
+  } while (SD.exists(logFilename));
 
   logFile = SD.open(logFilename, FILE_WRITE);
+
   Serial.print("Logging to file ");
   Serial.println(logFile.name());
 }
@@ -12,7 +19,7 @@ void Grbl::start() {
 byte Grbl::update(unsigned long nowMillis) {
   if (nowMillis >= millisRef + 1000) { // everysecond timer
     millisRef = nowMillis;
-    queryStatus = true;
+    //queryStatus = true;
     logFile.flush();
   }
 
@@ -133,6 +140,7 @@ void Grbl::receiveResponse() {
       // partial response, wait for another data
       partialResponse += data;
       Serial.println("Partial response: ->" + response + "<-");
+      logFile.println(" [partial]");
     }
   }
 }

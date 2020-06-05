@@ -139,12 +139,14 @@ void MillingCtrl::calibration() {
   if (keyPad.isKeyPressed(KEYCODE_CENTER)) {
     // set XY-home
     // TODO: command sequence handling (await ACK)
+    grbl.sendCommand("G10 L20 P0 X0 Y0");
     grbl.sendCommand("G10 L20 P1 X0 Y0");
     return;
   }
   if (keyPad.isKeyPressed(KEYCODE_ZCENTER)) {
     // set Z-home
     // TODO: command sequence handling (await ACK)
+    grbl.sendCommand("G10 L20 P0 Z0");
     grbl.sendCommand("G10 L20 P1 Z0");
     return;
   }
@@ -177,8 +179,7 @@ void MillingCtrl::calibration() {
   }
   if (command.length() > 0) {
     // TODO: command sequence handling (await ACK)
-    grbl.sendCommand("G91");
-    grbl.sendCommand("G0" + command);
+    grbl.sendCommand("G91 G0" + command);
     grbl.sendCommand("G90");
     redraw = true;
   }
